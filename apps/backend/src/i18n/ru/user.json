@@ -1,0 +1,59 @@
+{
+  "auth": {
+    "password_mismatched": "Неверный пароль",
+    "verified": "Вы должны подтвердить ваш email",
+    "invalidJwtPayload": "Некорректный JWT payload",
+    "invalidCredentials": "Неверные учетные данные",
+    "invalidVerify": "Неверный токен подтверждения",
+    "blocked": "Пользователь заблокирован",
+    "accountLocked": "Аккаунт временно заблокирован из-за слишком большого количества неудачных попыток входа",
+    "incorrectEmail": "Неверный email",
+    "userIdOrEmailMustBeProvided": "ИД пользователя или email должны быть предоставлены",
+    "tokenNotFound": "Refresh токен не найден в базе данных",
+    "tokenRevoked": "Refresh токен был отозван. Возможна кража токена!",
+    "tokenExpired": "Refresh токен истек",
+    "passwordMinLength": "Пароль должен содержать минимум 12 символов",
+    "passwordNotConfigured": "Пользователь не имеет пароля",
+    "currentPasswordInvalid": "Текущий пароль неверен",
+    "resetTokenInvalidOrExpired": "Токен сброса пароля недействителен или истёк",
+    "logout": {
+      "success": "Успешный выход из системы",
+      "failed": "Не удалось выйти или токен уже был отозван",
+      "tokenNotProvided": "Refresh токен не предоставлен"
+    },
+    "magicLink": {
+      "invalidOrExpired": "Недействительная или истекшая ссылка для входа",
+      "expiredOrUsed": "Ссылка для входа истекла или уже использована",
+      "invalidOrigin": "Неверный источник запроса",
+      "userNotFound": "Пользователь не найден для magic link",
+      "requestSent": "Если аккаунт с такой почтой существует, ссылка для входа отправлена."
+    },
+    "oauth": {
+      "providerNotLinked": "OAuth провайдер не привязан к этому аккаунту",
+      "userNotFound": "Пользователь не найден для OAuth идентификатора",
+      "cannotRemoveLastMethod": "Невозможно удалить последний метод аутентификации. Пожалуйста, установите пароль или оставьте хотя бы один OAuth провайдер.",
+      "alreadyLinked": "OAuth провайдер уже привязан к этому аккаунту",
+      "accountAlreadyLinked": "Этот OAuth аккаунт уже привязан к другому пользователю"
+    }
+  },
+  "role": {
+    "notFound": "Роль не найдена",
+    "failedToSave": "Не удалось сохранить роль",
+    "failedToUpdate": "Не удалось обновить роль"
+  },
+  "avatar": {
+    "failedToSave": "Не удалось сохранить аватар",
+    "failedToUpdate": "Не удалось обновить аватар"
+  },
+  "email": {
+    "alreadyExists": "Email уже существует"
+  },
+  "unknownError": "Неизвестная ошибка",
+  "notSufficientPermissions": "Недостаточно прав",
+  "notFound": "Не найден пользователь",
+  "engineer": {
+    "notFound": "Инженер не найден"
+  },
+  "failedToSave": "Не удалось сохранить пользователя",
+  "failedToUpdate": "Не удалось обновить пользователя"
+}

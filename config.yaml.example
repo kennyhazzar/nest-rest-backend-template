@@ -1,0 +1,121 @@
+log:
+  level: debug
+  colorize: true
+
+settings:
+  language: ru
+  locale: ru-RU
+  country: RU
+
+admin:
+  email: ${ADMIN_EMAIL:-admin@example.com}
+  password: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+
+host:
+  hostname: localhost
+  port: 3000
+  origin: http://localhost:3000
+  environment: development
+
+swagger:
+  enabled: true
+  path: api/docs
+  # Basic auth for /api/docs and /api/docs-json (leave empty to disable)
+  # user: ${SWAGGER_USER:-}
+  # password: ${SWAGGER_PASSWORD:-}
+
+database:
+  username: ${POSTGRES_USER:-postgres}
+  password: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+  host: localhost
+  port: 5432
+  db: ${POSTGRES_DB:-app}
+  ssl: false
+  # If you want to use a URI instead of individual fields, uncomment the following line:
+  # uri: ${DATABASE_URL}
+
+redis:
+  host: localhost
+  port: 6379
+  password: ${REDIS_PASSWORD:-}
+
+jwt:
+  algorithmJwt: HS256
+  algorithm: SHA512
+  access:
+    token: ${JWT_ACCESS_TOKEN:?JWT_ACCESS_TOKEN is required}
+    expires: 15min
+  refresh:
+    token: ${JWT_REFRESH_TOKEN:?JWT_REFRESH_TOKEN is required}
+    expires: 7days
+    jwtAlgorithm: HS512
+
+security:
+  encryptionKey: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is required}
+
+# Authentication configuration
+auth:
+  # Authentication mode:
+  # - HYBRID: tokens in both cookies AND response body (recommended for flexibility)
+  # - COOKIES_ONLY: tokens only in httpOnly cookies (maximum security, web only)
+  # - RESPONSE_ONLY: tokens only in response body (for mobile apps, current behavior)
+  mode: HYBRID
+
+  csrf:
+    # Enable CSRF protection (double-submit cookie pattern)
+    # Recommended: true for web applications
+    # Note: GraphiQL requests are automatically exempted in non-production environments
+    # even when CSRF is enabled, so you can test mutations locally without CSRF tokens
+    enabled: true
+
+  cookies:
+    accessToken:
+      name: accessToken
+      httpOnly: true # Prevent JavaScript access (XSS protection)
+      secure: false # Set to true in production (HTTPS only)
+      sameSite: lax # CSRF protection: strict | lax | none
+      maxAge: 900000 # 15 minutes (900000ms) - matches JWT expires
+
+    refreshToken:
+      name: refreshToken
+      httpOnly: true # Prevent JavaScript access (XSS protection)
+      secure: false # Set to true in production (HTTPS only)
+      sameSite: lax # CSRF protection: strict | lax | none
+      maxAge: 604800000 # 7 days (604800000ms)
+
+    csrf:
+      name: csrf-token
+      httpOnly: false # Must be readable by JavaScript for CSRF header
+      secure: false # Set to true in production (HTTPS only)
+      sameSite: lax # CSRF protection: strict | lax | none
+      maxAge: 604800000 # 7 days (604800000ms)
+
+
+# Optional: Uncomment to enable email
+# mailer:
+#   host: smtp.example.com
+#   port: 465
+#   secure: true
+#   user: user@example.com
+#   pass: password
+#   from: noreply@example.com
+
+# Optional: Uncomment to enable S3 storage
+# s3:
+#   accessKey: your-access-key
+#   secretKey: your-secret-key
+#   bucket: your-bucket
+#   region: us-east-1
+#   endpoint: https://storage.example.com
+#   forcePathStyle: false
+#   signedUrlExpires: 604800 # 7 days in seconds
+
+# Optional: Uncomment to enable Graylog logging
+# graylog:
+#   host: localhost
+#   port: 12201
+#   protocol: tcp  # udp or tcp
+#   facility: backend
+#   compression: true
+#   maxChunkSize: 8192
+#   enabled: false

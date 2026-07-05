@@ -1,0 +1,137 @@
+log:
+  level: info
+  colorize: false
+
+settings:
+  language: en
+  locale: en-US
+  country: US
+
+admin:
+  email: ${ADMIN_EMAIL:?ADMIN_EMAIL is required}
+  password: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+
+host:
+  hostname: 0.0.0.0
+  port: 3000
+  origin: https://yourdomain.com
+  environment: production
+
+swagger:
+  enabled: true
+  user: ${SWAGGER_USER:?SWAGGER_USER is required}
+  password: ${SWAGGER_PASSWORD:?SWAGGER_PASSWORD is required}
+
+# CORS configuration
+cors:
+  enabled: true
+  credentials: true
+  methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - PATCH
+    - OPTIONS
+  allowedHeaders:
+    - Content-Type
+    - Authorization
+    - Accept
+    - X-Requested-With
+    - X-CSRF-Token
+
+database:
+  username: ${POSTGRES_USER:?POSTGRES_USER is required}
+  password: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+  host: ${POSTGRES_HOST:?POSTGRES_HOST is required}
+  port: ${POSTGRES_PORT:-5432}
+  ssl: true
+  db: ${POSTGRES_DB:?POSTGRES_DB is required}
+
+redis:
+  host: ${REDIS_HOST:?REDIS_HOST is required}
+  port: ${REDIS_PORT:-6379}
+  password: ${REDIS_PASSWORD:-}
+
+# Rate limiting
+throttle:
+  ttl: 60000 # 60 seconds
+  limit: 100 # Max requests per TTL
+  trustProxy: true # Important for production behind proxy/load balancer
+
+jwt:
+  algorithmJwt: HS256
+  algorithm: SHA512
+  access:
+    token: ${JWT_ACCESS_TOKEN:?JWT_ACCESS_TOKEN is required}
+    expires: ${JWT_ACCESS_EXPIRES:-15min}
+  refresh:
+    token: ${JWT_REFRESH_TOKEN:?JWT_REFRESH_TOKEN is required}
+    expires: ${JWT_REFRESH_EXPIRES:-7days}
+    jwtAlgorithm: HS512
+
+security:
+  encryptionKey: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is required}
+
+# Authentication configuration
+auth:
+  # Authentication mode for production (choose based on your client apps)
+  # - HYBRID: supports both web browsers with cookies AND mobile apps with tokens
+  # - COOKIES_ONLY: web only, maximum security with httpOnly cookies
+  # - RESPONSE_ONLY: tokens in response only (legacy mode for mobile)
+  mode: HYBRID
+
+  csrf:
+    # IMPORTANT: Enable CSRF protection in production for web applications
+    # CSRF is strictly enforced in production (GraphiQL should be disabled anyway)
+    enabled: true
+
+  cookies:
+    accessToken:
+      name: accessToken
+      httpOnly: true # XSS protection - JavaScript cannot access
+      secure: true # REQUIRED in production - HTTPS only
+      sameSite: strict # Maximum CSRF protection for production
+      maxAge: 900000 # 15 minutes (900000ms)
+
+    refreshToken:
+      name: refreshToken
+      httpOnly: true # XSS protection - JavaScript cannot access
+      secure: true # REQUIRED in production - HTTPS only
+      sameSite: strict # Maximum CSRF protection for production
+      maxAge: 604800000 # 7 days (604800000ms)
+
+    csrf:
+      name: csrf-token
+      httpOnly: false # Must be readable by JavaScript for CSRF header
+      secure: true # REQUIRED in production - HTTPS only
+      sameSite: strict # Maximum CSRF protection for production
+      maxAge: 604800000 # 7 days (604800000ms)
+
+# Email configuration
+mailer:
+  host: ${MAILER_HOST:?MAILER_HOST is required}
+  port: ${MAILER_PORT:-587}
+  user: ${MAILER_USER:?MAILER_USER is required}
+  pass: ${MAILER_PASS:?MAILER_PASS is required}
+  from: ${MAILER_FROM:?MAILER_FROM is required}
+
+# S3 storage (production)
+s3:
+  accessKey: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}
+  secretKey: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
+  bucket: ${S3_BUCKET:?S3_BUCKET is required}
+  region: ${S3_REGION:-us-east-1}
+  endpoint: ${S3_ENDPOINT:?S3_ENDPOINT is required}
+  forcePathStyle: ${S3_FORCE_PATH_STYLE:-false}
+  signedUrlExpires: ${S3_SIGNED_URL_EXPIRES:-604800}
+
+# Graylog logging (optional)
+# graylog:
+#   host: graylog.yourdomain.com
+#   port: 12201
+#   protocol: tcp
+#   facility: backend-production
+#   compression: true
+#   maxChunkSize: 8192
+#   enabled: true

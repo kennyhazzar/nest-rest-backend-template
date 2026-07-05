@@ -1,0 +1,55 @@
+{
+  "common": {
+    "auth": {
+      "unauthorized": "Authentication is required",
+      "forbidden": "Access denied"
+    },
+    "csrf": {
+      "invalid": "Invalid CSRF token"
+    },
+    "request": {
+      "bad": "Bad request"
+    },
+    "route": {
+      "notFound": "Route not found"
+    },
+    "server": {
+      "internal": "Internal server error",
+      "unavailable": "Service temporarily unavailable"
+    },
+    "db": {
+      "uniqueViolation": "A record with this value already exists",
+      "foreignKeyViolation": "Referenced entity does not exist",
+      "notNullViolation": "A required field value is missing",
+      "constraintViolation": "Operation violates a data integrity rule",
+      "dataError": "Invalid data value provided"
+    },
+    "password": {
+      "minLength": "Password length must be at least 8 characters"
+    }
+  },
+  "file": {
+    "notFound": "File not found",
+    "notFoundWithId": "File with ID {fileId} not found",
+    "notFoundAfterUpdate": "File not found after update: {fileId}",
+    "invalidId": "Invalid file ID: {fileId}",
+    "accessDenied": "You do not have access to this file",
+    "invalidUploadParameters": "Invalid upload parameters",
+    "s3UploadFailed": "S3 upload failed",
+    "s3DownloadFailed": "Failed to download file from S3: {path}"
+  },
+  "mail": {
+    "notFound": "Mail not found",
+    "templateNotFound": "Mail template not found",
+    "templateInactive": "Mail template is not active",
+    "templateFileNotFound": "Mail template file not found",
+    "sendRequiredFields": "Email, subject and template are required"
+  },
+  "s3": {
+    "endpointInvalid": "S3 endpoint must start with http:// or https://"
+  },
+  "admin": {
+    "passwordWeak": "Admin password must be at least 8 characters long and strong",
+    "roleNotFound": "Role for admin user not found"
+  }
+}

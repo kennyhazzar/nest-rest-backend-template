@@ -1,0 +1,59 @@
+{
+  "auth": {
+    "password_mismatched": "Invalid password",
+    "verified": "You have to verify your email",
+    "invalidJwtPayload": "Invalid JWT payload",
+    "invalidCredentials": "Invalid credentials",
+    "invalidVerify": "Invalid verify",
+    "blocked": "User blocked",
+    "accountLocked": "Account is temporarily locked due to too many failed login attempts",
+    "incorrectEmail": "Incorrect email",
+    "userIdOrEmailMustBeProvided": "User ID or email must be provided",
+    "tokenNotFound": "Refresh token not found in database",
+    "tokenRevoked": "Refresh token has been revoked. Possible token theft detected!",
+    "tokenExpired": "Refresh token has expired",
+    "passwordMinLength": "Password must contain at least 12 characters",
+    "passwordNotConfigured": "User does not have a password",
+    "currentPasswordInvalid": "Current password is invalid",
+    "resetTokenInvalidOrExpired": "Password reset token is invalid or expired",
+    "logout": {
+      "success": "Successfully logged out",
+      "failed": "Logout failed or token already revoked",
+      "tokenNotProvided": "Refresh token not provided"
+    },
+    "magicLink": {
+      "invalidOrExpired": "Invalid or expired magic link",
+      "expiredOrUsed": "Magic link has expired or already been used",
+      "invalidOrigin": "Invalid request origin",
+      "userNotFound": "User not found for magic link",
+      "requestSent": "If an account exists with this email, a magic link has been sent."
+    },
+    "oauth": {
+      "providerNotLinked": "OAuth provider is not linked to this account",
+      "userNotFound": "User not found for OAuth identity",
+      "cannotRemoveLastMethod": "Cannot remove last authentication method. Please set a password first or keep at least one OAuth provider linked.",
+      "alreadyLinked": "OAuth provider is already linked to this account",
+      "accountAlreadyLinked": "This OAuth account is already linked to another user"
+    }
+  },
+  "role": {
+    "notFound": "Role not found",
+    "failedToSave": "Failed to save role",
+    "failedToUpdate": "Failed to update role"
+  },
+  "avatar": {
+    "failedToSave": "Failed to save avatar",
+    "failedToUpdate": "Failed to update avatar"
+  },
+  "email": {
+    "alreadyExists": "Email already exists"
+  },
+  "unknownError": "Unknown error",
+  "notSufficientPermissions": "Not sufficient permissions",
+  "notFound": "User not found",
+  "engineer": {
+    "notFound": "Engineer not found"
+  },
+  "failedToSave": "Failed to save user",
+  "failedToUpdate": "Failed to update user"
+}

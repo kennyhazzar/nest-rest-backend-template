@@ -1,0 +1,10 @@
+.git
+.github
+.husky
+.idea
+.vscode
+coverage
+dist
+node_modules
+*.log
+config.yaml

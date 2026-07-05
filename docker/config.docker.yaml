@@ -1,0 +1,101 @@
+log:
+  level: debug
+  colorize: false
+  file:
+    enabled: ${LOG_FILE_ENABLED:-true}
+    path: ${BACKEND_LOG_FILE_PATH:-/app/logs/backend.log}
+
+settings:
+  language: en
+  locale: en-US
+  country: US
+
+admin:
+  email: ${ADMIN_EMAIL:?ADMIN_EMAIL is required}
+  password: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+
+host:
+  hostname: 0.0.0.0
+  port: 3000
+  origin: http://localhost:3000
+  environment: development
+
+swagger:
+  enabled: true
+  path: api/docs
+
+database:
+  username: ${POSTGRES_USER:-postgres}
+  password: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+  host: postgres
+  port: 5432
+  db: ${POSTGRES_DB:-app}
+  ssl: false
+
+redis:
+  host: redis
+  port: 6379
+  password: ${REDIS_PASSWORD:-}
+
+jwt:
+  algorithmJwt: HS256
+  algorithm: SHA512
+  access:
+    token: ${JWT_ACCESS_TOKEN:?JWT_ACCESS_TOKEN is required}
+    expires: ${JWT_ACCESS_EXPIRES:-15min}
+  refresh:
+    token: ${JWT_REFRESH_TOKEN:?JWT_REFRESH_TOKEN is required}
+    expires: ${JWT_REFRESH_EXPIRES:-7days}
+    jwtAlgorithm: HS512
+
+security:
+  encryptionKey: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is required}
+
+auth:
+  mode: HYBRID
+  csrf:
+    enabled: false
+  cookies:
+    accessToken:
+      name: accessToken
+      httpOnly: true
+      secure: false
+      sameSite: lax
+      maxAge: 900000
+    refreshToken:
+      name: refreshToken
+      httpOnly: true
+      secure: false
+      sameSite: lax
+      maxAge: 604800000
+    csrf:
+      name: csrf-token
+      httpOnly: false
+      secure: false
+      sameSite: lax
+      maxAge: 604800000
+
+cors:
+  enabled: true
+  credentials: true
+
+mailer:
+  host: mailpit
+  port: 1025
+  secure: false
+  user: local
+  pass: local
+  from: noreply@example.local
+
+s3:
+  accessKey: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+  secretKey: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+  bucket: ${S3_BUCKET:-app-files}
+  region: us-east-1
+  endpoint: http://minio:9000
+  forcePathStyle: true
+  signedUrlExpires: 604800
+
+observability:
+  zabbix:
+    enabled: ${ZABBIX_ENABLED:-false}

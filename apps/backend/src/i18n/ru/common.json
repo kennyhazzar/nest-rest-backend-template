@@ -1,0 +1,55 @@
+{
+  "common": {
+    "auth": {
+      "unauthorized": "Требуется авторизация",
+      "forbidden": "Доступ запрещён"
+    },
+    "csrf": {
+      "invalid": "Неверный CSRF-токен"
+    },
+    "request": {
+      "bad": "Некорректный запрос"
+    },
+    "route": {
+      "notFound": "Маршрут не найден"
+    },
+    "server": {
+      "internal": "Внутренняя ошибка сервера",
+      "unavailable": "Сервис временно недоступен"
+    },
+    "db": {
+      "uniqueViolation": "Запись с таким значением уже существует",
+      "foreignKeyViolation": "Связанная сущность не найдена",
+      "notNullViolation": "Отсутствует значение обязательного поля",
+      "constraintViolation": "Операция нарушает правило целостности данных",
+      "dataError": "Передано недопустимое значение данных"
+    },
+    "password": {
+      "minLength": "Длина пароля должна быть не меньше 8 символов"
+    }
+  },
+  "file": {
+    "notFound": "Файл не найден",
+    "notFoundWithId": "Файл с ID {fileId} не найден",
+    "notFoundAfterUpdate": "Файл не найден после обновления: {fileId}",
+    "invalidId": "Неверный ID файла: {fileId}",
+    "accessDenied": "У вас нет доступа к этому файлу",
+    "invalidUploadParameters": "Неверные параметры загрузки",
+    "s3UploadFailed": "Не удалось загрузить файл в S3",
+    "s3DownloadFailed": "Не удалось скачать файл из S3: {path}"
+  },
+  "mail": {
+    "notFound": "Письмо не найдено",
+    "templateNotFound": "Шаблон письма не найден",
+    "templateInactive": "Шаблон письма не активен",
+    "templateFileNotFound": "Файл шаблона письма не найден",
+    "sendRequiredFields": "Email, тема и шаблон обязательны"
+  },
+  "s3": {
+    "endpointInvalid": "S3 endpoint должен начинаться с http:// или https://"
+  },
+  "admin": {
+    "passwordWeak": "Пароль администратора должен быть стойким и содержать минимум 8 символов",
+    "roleNotFound": "Роль администратора не найдена"
+  }
+}

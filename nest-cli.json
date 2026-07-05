@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/backend/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": false,
+    "manualRestart": true,
+    "tsConfigPath": "apps/backend/tsconfig.app.json",
+    "assets": [
+      {
+        "include": "assets/**/*",
+        "outDir": "dist/apps/backend",
+        "watchAssets": true,
+        "watchOptions": {
+          "ignored": "**/*.ts"
+        }
+      },
+      {
+        "include": "i18n/**/*.json",
+        "outDir": "dist/apps/backend",
+        "watchAssets": true
+      },
+      {
+        "include": "options/templates/**/*.hbs",
+        "outDir": "dist/apps/backend",
+        "watchAssets": true
+      },
+      {
+        "include": "proto/**/*.proto",
+        "outDir": "dist/apps/backend",
+        "watchAssets": true
+      }
+    ]
+  },
+  "monorepo": true,
+  "root": "apps/backend",
+  "projects": {
+    "backend": {
+      "type": "application",
+      "root": "apps/backend",
+      "entryFile": "main",
+      "sourceRoot": "apps/backend/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/backend/tsconfig.app.json"
+      }
+    }
+  }
+}

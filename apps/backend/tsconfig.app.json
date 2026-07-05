@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "rootDir": "./src",
+    "outDir": "../../dist/apps/backend"
+  },
+  "include": ["src/**/*", "src/utils/pino-pretty.js"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}
