@@ -23,7 +23,7 @@ Production-ready NestJS REST API template. Feature-module architecture with ligh
 
 ## Feature summary
 
-- NestJS 11 on Fastify (not Express)
+- NestJS 11 on Fastify
 - Drizzle ORM over PostgreSQL, SQL-first migrations
 - CQRS via `@nestjs/cqrs` — controllers only dispatch commands/queries
 - RBAC with CASL, permissions seeded per role, checked via `@Policy()` + `PoliciesGuard`
@@ -244,7 +244,7 @@ Home-grown SVG text captcha — no third-party captcha service dependency.
 
 Design: challenge images are **pre-generated in bulk** into an S3-backed pool and tracked in Redis (`RedisCaptchaPool`), rather than generated synchronously per request — batch generation runs through a BullMQ `captcha-generation` queue/processor. Answers are hashed with HMAC (`HmacCaptchaHashingService`), never stored in plaintext. This is what the login lockout flow (see below) points users at once `requiresCaptcha` is returned.
 
-> **Setup gotcha**: unlike roles/admin/mail templates, **captcha templates are not seeded automatically**. Challenge creation defaults to template code `svg-text-ru-v1` and 404s if it doesn't exist and isn't `ACTIVE`. On a fresh environment, an admin must create it (and an active config) via `POST /admin/captcha/templates` + `.../configs` + `.../activate` before any captcha-gated flow works.
+> **Note**: unlike roles/admin/mail templates, **captcha templates are not seeded automatically**. Challenge creation defaults to template code `svg-text-ru-v1` and 404s if it doesn't exist and isn't `ACTIVE`. On a fresh environment, an admin must create it (and an active config) via `POST /admin/captcha/templates` + `.../configs` + `.../activate` before any captcha-gated flow works.
 
 ### Admin
 
@@ -300,7 +300,7 @@ Translation files live under `apps/backend/src/i18n/{ru,en}/*.json`, split by na
 
 - **Logging**: `nestjs-pino`, pretty-printed in dev, JSON in prod. Optional additional transports, toggled purely by config presence: file (`log.file.*`), Graylog/GELF (`graylog.*`), Elasticsearch (`kibana.host`, via `pino-elasticsearch`).
 - **Health checks**: see [Health module](#health) above.
-- **Zabbix**: there's no Zabbix client code in the app itself — `observability.zabbix.enabled` is just a config flag that makes `main.ts` log a warning at boot when monitoring isn't wired up. The actual integration is a **separate, optional** `docker/docker-compose.zabbix.yaml` stack (zabbix-server/web/agent2) that attaches to the same Docker network and monitors the backend by tailing the same `./logs` volume the backend writes to when `LOG_FILE_ENABLED=true` — it is not started by `pnpm docker` and must be brought up explicitly.
+- **Zabbix**: no Zabbix client code exists in the app itself — `observability.zabbix.enabled` is a config flag that makes `main.ts` log a warning at boot when monitoring isn't wired up. The integration is a **separate, optional** `docker/docker-compose.zabbix.yaml` stack (zabbix-server/web/agent2) that attaches to the same Docker network and monitors the backend by tailing the same `./logs` volume the backend writes to when `LOG_FILE_ENABLED=true`. It is not started by `pnpm docker` and must be brought up explicitly.
 - **Request IDs**: every response carries `X-Request-Id` (respects an inbound `x-request-id` header if it matches a safe pattern, otherwise generates one) — correlate a client-reported issue with server logs.
 
 ## Database & migrations
@@ -315,7 +315,7 @@ pnpm drizzle:migrate:test  # same, against config.test.yaml
 
 Migrations are plain SQL files under `drizzle/migrations/`, applied via a custom runner (not `drizzle-kit migrate`) that tracks applied hashes in `drizzle.__drizzle_migrations` — this runs automatically as the first step of the Docker image's container command (see [Deployment](#deployment)).
 
-> **Known drift**: `0000_initial.sql`/`0001_file_version_optional_s3_version.sql` are the only committed migrations, but the live schema (`schema/*.schema.ts`) has grown well beyond them (captcha_*, notification, mail, access_log, system_setting, role_permission, refresh, etc. — most of the schema isn't represented in a migration file). Running `pnpm drizzle:generate` against the current schema will surface this as one large diff. This predates any dependency work in this document; the tables clearly already exist in real deployments (they were most likely applied via `drizzle-kit push` at some point rather than a generated migration). Treat "regenerate migrations to match schema" as a separate, deliberate task — don't let a stray large migration get committed as a side effect of something else.
+> **Known drift**: `0000_initial.sql`/`0001_file_version_optional_s3_version.sql` are the only committed migrations, but the live schema (`schema/*.schema.ts`) has grown well beyond them (captcha_*, notification, mail, access_log, system_setting, role_permission, refresh, etc. — most of the schema isn't represented in a migration file). Running `pnpm drizzle:generate` against the current schema will surface this as one large diff. The tables already exist in real deployments, most likely applied via `drizzle-kit push` rather than a generated migration. Regenerating migrations to match the schema should be treated as a separate, deliberate task rather than a side effect of unrelated changes.
 
 ## Testing
 
@@ -331,7 +331,7 @@ pnpm test:all                # all three tiers in sequence
 
 Unit tests mock repository/service abstract classes directly (`jest.Mocked<T>`), following the pattern in `modules/users/application/handlers/*.spec.ts`. The e2e harness (`test/setup/app.ts`) boots the real `AppModule` once and reuses it across specs; currently only a health-check e2e spec exists (`test/e2e/app-health.e2e-spec.ts`) — most coverage today is at the unit level.
 
-**Honest state of the other two tiers**: `test/integration/` is wired up (its own Jest config, `NODE_ENV=test`, real DB) but currently has **no spec files** — `pnpm test:integration` (and therefore `pnpm test:all`, which chains it before `test:e2e`) currently **fails** with Jest's "No tests found, exiting with code 1" rather than passing trivially. Only one e2e spec exists. Treat both as scaffolded, not populated — add a spec or pass `--passWithNoTests` before relying on `test:all` in CI.
+`test/integration/` has its own Jest config (`NODE_ENV=test`, real DB) but currently contains **no spec files**. `pnpm test:integration` — and therefore `pnpm test:all`, which chains it before `test:e2e` — fails with Jest's "No tests found, exiting with code 1" rather than passing trivially. Only one e2e spec exists. Both tiers are scaffolded but not populated; add a spec or pass `--passWithNoTests` before relying on `test:all` in CI.
 
 One behavior worth knowing before running tests against a shared database: `UserSeedService.seedIfEmpty()` **truncates `user`, `role_permission`, `user_role`, `refresh`** whenever `NODE_ENV=test`, then reseeds — never point `config.test.yaml` at a database you care about.
 
@@ -363,24 +363,26 @@ Steps for a real deployment:
 
 ## Dependencies
 
-Package management is **pnpm** (via Corepack, pinned in `package.json#packageManager`), not Yarn. Version-forcing/build-script config lives in `pnpm-workspace.yaml` (`overrides` — pnpm's equivalent of Yarn's old `resolutions` field; `allowBuilds` — explicit allowlist of packages permitted to run native/postinstall build scripts, a pnpm 11 security feature that silently skips unlisted ones).
+Package management is **pnpm** (via Corepack, pinned in `package.json#packageManager`). Override and build-script configuration lives in `pnpm-workspace.yaml`: `overrides` forces specific versions for transitive dependencies (pnpm's equivalent of Yarn's `resolutions`), and `allowBuilds` is an explicit allowlist of packages permitted to run native/postinstall build scripts — a pnpm 11 security feature that silently skips unlisted packages.
 
-All dependencies are kept at their latest published version as of this writing, except two deliberate pins:
+Dependencies track their latest published version, with the following exceptions:
 
-- **`sonic-boom` stays on `^4.2.0`** (latest is `5.0.0`) — `pino@10` itself still depends on `sonic-boom@^4.0.1` internally, and our custom GELF transport (`utils/pino-gelf.mts`) constructs `SonicBoom` directly, so there's no upside to moving ahead of what pino itself uses.
-- **`@swc/cli` stays on `^0.7.10`** (latest is `0.8.1`) — this package isn't actually used anywhere in the build or test pipeline (`nest build` compiles via `tsc`, tests run through `ts-jest`), so a 0.x "minor" bump (which is semver-breaking territory for 0.x packages) wasn't worth taking for zero benefit.
+| Package              | Pinned at | Reason                                                                 |
+| --------------------- | --------- | ------------------------------------------------------------------------ |
+| `sonic-boom`           | `^4.2.0`  | `pino@10` depends on `sonic-boom@^4.0.1` internally, and the custom GELF transport (`utils/pino-gelf.mts`) constructs `SonicBoom` directly; kept aligned with pino's own dependency rather than ahead of it. |
+| `@swc/cli`             | `^0.7.10` | Not used by the build or test pipeline (`nest build` compiles via `tsc`, tests run via `ts-jest`); the 0.8 line was not taken since 0.x version bumps are semver-breaking by convention. |
 
-Two dependencies were removed entirely rather than upgraded:
+Two dependencies were removed rather than upgraded:
 
-- **`uuid`** — the v12+ releases are ESM-only, which doesn't `require()` cleanly from this project's CommonJS build output. Since it was only used for `uuid.v4()` (refresh-token JWT IDs, CSRF tokens) and the `NIL` constant, both were replaced with `node:crypto`'s built-in `randomUUID()` and a literal string — one fewer dependency, no ESM/CJS risk going forward.
-- **`@golevelup/ts-jest`** — declared in `package.json` but not imported anywhere in the codebase; removed instead of carrying a 0.7→3.0 major bump for something unused.
+- **`uuid`** — v12+ releases are ESM-only and do not `require()` from this project's CommonJS build output. The only usages (`uuid.v4()` for refresh-token JWT IDs and CSRF tokens, and the `NIL` constant) were replaced with `node:crypto`'s `randomUUID()` and a literal string.
+- **`@golevelup/ts-jest`** — declared in `package.json` but not referenced anywhere in the codebase; removed.
 
-Two upgrades required real code changes, not just a version bump:
+Two upgrades required source changes beyond the version bump:
 
-- **`@casl/ability` 6→7** removed the `PureAbility` export entirely (merged into a single `Ability` class). `CaslAbilityFactory` now builds on `Ability` instead — same behavior, different import.
-- **TypeScript 5→6** deprecated `baseUrl` (removed, `paths` already resolved relative to the config file without it) and explicit `esModuleInterop: false` (kept via `"ignoreDeprecations": "6.0"` — flipping it to `true` would change import semantics across the whole codebase and is out of scope for a version bump), and now requires an explicit `rootDir` alongside `outDir` in `apps/backend/tsconfig.app.json`.
+- **`@casl/ability` 6→7** removed the `PureAbility` export in favor of a single `Ability` class. `CaslAbilityFactory` builds on `Ability` instead; behavior is unchanged.
+- **TypeScript 5→6** removed `baseUrl` (path aliases already resolve relative to the config file without it), requires `"ignoreDeprecations": "6.0"` to keep `esModuleInterop: false`, and requires an explicit `rootDir` alongside `outDir` in `apps/backend/tsconfig.app.json`.
 
-Along the way, a few pre-existing issues surfaced (unrelated to any specific dependency version, just never exercised before): a phantom `jsonwebtoken`/`ms` dependency (imported directly in code but never declared in `package.json` — only worked before because Yarn's flat `node_modules` hoisted them), and a wrong relative path in `mail/infrastructure/services/mail.service.ts` that made every template-file-fallback email (anything without DB-stored content, e.g. the welcome email) silently fail — both fixed.
+Two pre-existing defects, unrelated to any specific dependency version, were also identified and fixed: a phantom `jsonwebtoken`/`ms` dependency (imported in source but never declared in `package.json`, working previously only because Yarn's flat `node_modules` hoisted them), and an incorrect relative import path in `mail/infrastructure/services/mail.service.ts` that caused template-file-fallback emails (any template without DB-stored content, e.g. the welcome email) to fail silently.
 
 ## Roadmap
 
