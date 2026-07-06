@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 
 import { RoleType } from '@/enums/role-type.enum';
 import { Actions } from '@/enums/actions.enum';
@@ -10,15 +10,23 @@ import { IRolePermission, RolePermissionRepository } from '../../domain/reposito
  * Service for working with access policies
  */
 @Injectable()
-export class PoliciesService {
+export class PoliciesService implements OnModuleInit {
   private readonly logger = new Logger(PoliciesService.name);
   private readonly abilityCache = new Map<RoleType, AppAbility>();
 
   constructor(
     private readonly caslAbilityFactory: CaslAbilityFactory,
     private readonly rolePermissionRepository: RolePermissionRepository,
-  ) {
-    void this.fillAbilities();
+  ) {}
+
+  /**
+   * Populates the ability cache before the app starts accepting requests.
+   * Nest awaits onModuleInit across all modules before main.ts calls app.listen(),
+   * so this closes the race where an early request could miss the cache and
+   * pay for an extra per-role DB round trip via getAbilityForRole's fallback.
+   */
+  async onModuleInit(): Promise<void> {
+    await this.fillAbilities();
   }
 
   /**
