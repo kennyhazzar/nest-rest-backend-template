@@ -1,1 +1,2 @@
-export * from './auth-service.adapter';
+export * from './auth-grpc-gateway.adapter';
+export * from './auth-cookies.helper';

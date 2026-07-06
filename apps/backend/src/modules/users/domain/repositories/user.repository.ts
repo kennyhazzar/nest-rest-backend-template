@@ -18,6 +18,8 @@ export abstract class UserRepository {
 
   abstract update(userId: IdType, update: UserUpdatePayload): Promise<UpdateAffected>;
 
+  abstract incrementTokenVersion(userId: IdType): Promise<number>;
+
   abstract delete(id: IdType): Promise<UpdateAffected>;
 
   abstract existsByEmail(email: string): Promise<boolean>;

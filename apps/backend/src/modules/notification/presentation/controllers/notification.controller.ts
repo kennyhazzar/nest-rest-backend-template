@@ -23,6 +23,7 @@ import { NotificationsGetQuery } from '../../application/queries/notifications-g
 import { NotificationUnreadCountQuery } from '../../application/queries/notification-unread-count.query';
 import { NotificationsQuery } from '../dtos/notification.input';
 import { NotificationsDto } from '../dtos/notification.dto';
+import { SkipThrottle } from '@nestjs/throttler';
 
 @ApiTags('notifications')
 @ApiBearerAuth()
@@ -35,6 +36,7 @@ export class NotificationController {
   ) {}
 
   @Get()
+  @SkipThrottle()
   @Policy(Actions.READ, Subjects.NOTIFICATION)
   @ApiOperation({ summary: 'List notifications for current user' })
   @ApiOkResponse({ type: NotificationsDto })

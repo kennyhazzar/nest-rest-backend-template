@@ -1,4 +1,4 @@
-import { PasswordHashType } from '@/enums/password-hash-type.enum';
+import { PasswordHashType } from './password-hash-type.enum';
 
 /**
  * Abstract service for password operations

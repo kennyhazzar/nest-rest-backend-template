@@ -1,13 +1,17 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 
 import { JwtPayloadApp, ValidateJWT } from '@/interfaces/jwt.payload.interface';
+import { AuthTokenVersionService } from '../services';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
+  constructor(
+    configService: ConfigService,
+    private readonly tokenVersionService: AuthTokenVersionService,
+  ) {
     const secretOrKey = configService.getOrThrow<string>('jwt.access.token');
     const cookieName = configService.get<string>('auth.cookies.accessToken.name', 'accessToken');
 
@@ -35,11 +39,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate({ sub: userId, rid: roleId, rty: roleType, lng: language }: JwtPayloadApp): Promise<ValidateJWT> {
+  async validate({
+    sub: userId,
+    rid: roleId,
+    rty: roleType,
+    lng: language,
+    tv: tokenVersion,
+  }: JwtPayloadApp): Promise<ValidateJWT> {
     if (!userId || !roleId || !roleType || !language) {
-      throw new BadRequestException('user.auth.invalidJwtPayload');
+      throw new UnauthorizedException('user.auth.invalidJwtPayload');
     }
 
-    return { userId, roleId, roleType, language };
+    await this.tokenVersionService.assertCurrent(userId, tokenVersion);
+
+    return { userId, roleId, roleType, language, tokenVersion };
   }
 }

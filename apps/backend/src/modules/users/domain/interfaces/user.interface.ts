@@ -23,6 +23,7 @@ export interface IUser extends IBaseEntity {
   failedLoginAttempts: number;
   failedLoginWindowStartedAt?: Date | null;
   lockedUntil?: Date | null;
+  tokenVersion: number;
   country: string;
   language: string;
   locale: string;
@@ -47,6 +48,7 @@ export type UserCreateData = {
   failedLoginAttempts?: number;
   failedLoginWindowStartedAt?: Date | null;
   lockedUntil?: Date | null;
+  tokenVersion?: number;
   gender?: Gender | null;
   theme?: Theme | null;
   country?: string;

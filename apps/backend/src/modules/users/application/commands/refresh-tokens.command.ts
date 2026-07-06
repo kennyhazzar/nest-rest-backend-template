@@ -1,14 +1,13 @@
 import { Command } from '@nestjs/cqrs';
-import { FastifyRequest } from 'fastify';
+import { FastifyReply, FastifyRequest } from 'fastify';
 
-export class RefreshTokensCommand extends Command<{
-  accessToken: string;
-  refreshToken: string;
-  csrfToken: string;
-}> {
+import { AccessTokenResponseDto } from '../../presentation/dtos';
+
+export class RefreshTokensCommand extends Command<AccessTokenResponseDto> {
   constructor(
     public readonly refreshToken: string,
     public readonly request: FastifyRequest,
+    public readonly reply: FastifyReply,
   ) {
     super();
   }

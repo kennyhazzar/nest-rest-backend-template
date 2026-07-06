@@ -1,4 +1,4 @@
-export * from './users.schema';
+export * from '@libs/database/users.schema';
 export * from './file.schema';
 export * from './mail.schema';
 export * from './notification.schema';

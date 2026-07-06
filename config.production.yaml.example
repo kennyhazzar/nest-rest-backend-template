@@ -47,6 +47,9 @@ database:
   port: ${POSTGRES_PORT:-5432}
   ssl: true
   db: ${POSTGRES_DB:?POSTGRES_DB is required}
+  # Tune based on measured concurrent load and Postgres's own max_connections; node-postgres
+  # defaults to 10, which is frequently too low to be the throughput ceiling in production.
+  poolMax: ${POSTGRES_POOL_MAX:-10}
 
 redis:
   host: ${REDIS_HOST:?REDIS_HOST is required}
@@ -72,6 +75,12 @@ jwt:
 
 security:
   encryptionKey: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is required}
+
+# apps/auth-service: gRPC port it binds to, and the address apps/backend dials to reach it
+grpc:
+  authService:
+    port: 50051
+    url: ${AUTH_SERVICE_GRPC_URL:-auth-service:50051}
 
 # Authentication configuration
 auth:

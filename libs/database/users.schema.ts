@@ -75,6 +75,7 @@ export const user = pgTable(
     failedLoginAttempts: integer('failedLoginAttempts').default(0).notNull(),
     failedLoginWindowStartedAt: timestamp('failedLoginWindowStartedAt', { withTimezone: true }),
     lockedUntil: timestamp('lockedUntil', { withTimezone: true }),
+    tokenVersion: integer('tokenVersion').default(1).notNull(),
     country: varchar('country', { length: 2 }).default('RU'),
     language: varchar('language', { length: 6 }).default('ru'),
     locale: varchar('locale', { length: 6 }).default('ru_RU'),

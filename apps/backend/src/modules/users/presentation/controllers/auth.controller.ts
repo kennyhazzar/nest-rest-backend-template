@@ -10,14 +10,11 @@ import {
   ApiForbiddenResponse,
 } from '@nestjs/swagger';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { ConfigService } from '@nestjs/config';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { Throttle } from '@nestjs/throttler';
 
-import { AuthMode } from '@/enums';
 import { JwtAuthGuard } from '@/guards/jwt-auth.guard';
 import { CurrentUserId } from '@/decorators/current-user-id.decorator';
-import { AuthServiceAdapter } from '../../infrastructure/adapters';
 import {
   AuthResponseDto,
   AccessTokenResponseDto,
@@ -31,7 +28,6 @@ import {
   UserDto,
 } from '../dtos';
 import { UserGetByIdQuery } from '../../application/queries';
-import { UserMapper } from '../mappers';
 import {
   UserLoginCommand,
   UserLogoutCommand,
@@ -49,8 +45,6 @@ export class AuthController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
-    private readonly authService: AuthServiceAdapter,
-    private readonly configService: ConfigService,
   ) {}
 
   @Get('me')
@@ -81,27 +75,7 @@ export class AuthController {
     @Req() req: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ): Promise<AuthResponseDto> {
-    const user = await this.commandBus.execute(new UserLoginCommand(input));
-    const accessToken = await this.authService.generateAccessToken({
-      userId: user.id,
-      roleId: user.roleId,
-      roleType: user.role!.type,
-      language: user.language,
-    });
-    const refreshToken = await this.authService.generateRefreshToken(user, req);
-    const csrfToken = this.authService.generateCsrfToken();
-
-    this.authService.setAuthCookies(reply, accessToken, refreshToken, csrfToken);
-
-    const mode = this.configService.get<AuthMode>('auth.mode', AuthMode.HYBRID);
-    const csrfEnabled = this.configService.get<boolean>('auth.csrf.enabled', false);
-
-    return {
-      accessToken: mode !== AuthMode.COOKIES_ONLY ? accessToken : undefined,
-      refreshToken: mode !== AuthMode.COOKIES_ONLY ? refreshToken : undefined,
-      csrfToken: csrfEnabled && mode !== AuthMode.COOKIES_ONLY ? csrfToken : undefined,
-      user: UserMapper.toDto(user),
-    };
+    return this.commandBus.execute(new UserLoginCommand(input, req, reply));
   }
 
   @Post('refresh')
@@ -120,18 +94,7 @@ export class AuthController {
       throw new UnauthorizedException('user.auth.logout.tokenNotProvided');
     }
 
-    const tokens = await this.commandBus.execute(new RefreshTokensCommand(refreshToken, req));
-
-    const mode = this.configService.get<AuthMode>('auth.mode', AuthMode.HYBRID);
-    if (mode !== AuthMode.RESPONSE_ONLY) {
-      this.authService.setAuthCookies(reply, tokens.accessToken, tokens.refreshToken, tokens.csrfToken);
-    }
-
-    return {
-      accessToken: mode !== AuthMode.COOKIES_ONLY ? tokens.accessToken : undefined,
-      refreshToken: mode !== AuthMode.COOKIES_ONLY ? tokens.refreshToken : undefined,
-      csrfToken: tokens.csrfToken,
-    };
+    return this.commandBus.execute(new RefreshTokensCommand(refreshToken, req, reply));
   }
 
   @Post('logout')
@@ -149,13 +112,7 @@ export class AuthController {
       return { success: false, message: 'user.auth.logout.tokenNotProvided' };
     }
 
-    const success = await this.commandBus.execute(new UserLogoutCommand(refreshToken));
-    this.authService.clearAuthCookies(reply);
-
-    return {
-      success,
-      message: success ? 'user.auth.logout.success' : 'user.auth.logout.failed',
-    };
+    return this.commandBus.execute(new UserLogoutCommand(refreshToken, reply));
   }
 
   @Post('forgot-password')

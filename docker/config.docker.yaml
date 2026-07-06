@@ -31,6 +31,7 @@ database:
   port: 5432
   db: ${POSTGRES_DB:-app}
   ssl: false
+  poolMax: 30
 
 redis:
   host: redis
@@ -50,6 +51,12 @@ jwt:
 
 security:
   encryptionKey: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is required}
+
+# apps/auth-service: gRPC port it binds to, and the address apps/backend dials to reach it
+grpc:
+  authService:
+    port: 50051
+    url: ${AUTH_SERVICE_GRPC_URL:-auth-service:50051}
 
 auth:
   mode: HYBRID

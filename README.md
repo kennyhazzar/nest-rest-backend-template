@@ -59,7 +59,13 @@ Production-ready NestJS REST API template. Feature-module architecture with ligh
 
 ## Architecture
 
-This is a single Nest application (`apps/backend`), not a multi-app monorepo, but it is organized like one internally.
+This is an **Nest CLI monorepo** with two deployable apps and a `libs/` layer shared between them:
+
+- `apps/backend` — the main REST API (Fastify, HTTP), everything except credential verification/token issuance.
+- `apps/auth-service` — a standalone **gRPC microservice** that owns login, refresh-token rotation, logout, and password reset/change. It exists because Argon2id password verification is CPU-bound work: a load test showed a login surge pinning the single backend process at >1000% CPU and dragging every other endpoint's latency up 40-70% along with it. Isolating that work into its own process/container means a login flood degrades login, not the rest of the product. `docker/docker-compose.yaml` caps it at `cpus: 4.0` for the same reason — without a quota, one noisy container can still starve CPU-scheduling for its neighbors even on a single Docker host.
+- `libs/` — code genuinely shared by both apps (not a dumping ground for anything auth-adjacent): `libs/contracts/auth` (the gRPC `.proto` + hand-written TS types + failure-reason enums), `libs/contracts/users` (`RoleType`, used both in JWT payloads and CASL), `libs/auth` (`PasswordService`/`PasswordServiceAdapter`, JWT payload shape, `AuthMode`), `libs/database` (the shared Drizzle schema for `user`/`user_role`/`role_permission`/`refresh`/`password_reset_token` — each app opens its own connection pool against it), `libs/common` (`IdType`, `IBaseEntity`, the YAML config loader).
+
+apps/backend's `AuthController` REST surface (`/auth/login`, `/auth/refresh`, ...) is **unchanged** for clients — internally, its CQRS handlers (`LoginUserHandler` etc.) are thin: they call `AuthGatewayPort` (an abstract class — the only thing they depend on for this), which is implemented by `AuthGrpcGatewayAdapter`, the single place in `apps/backend` that talks gRPC. The handler translates the structured `{success, failureReason, ...}` response back into the same domain events, HTTP exceptions and i18n keys the endpoint always produced, and sets cookies locally (gRPC can't carry a live Fastify `reply`, so cookie-writing stays on the HTTP side). `apps/auth-service` mirrors the same business logic (lockout bookkeeping, rehash-on-login, refresh rotation) against its own narrow `AuthUser`/`RefreshTokenRecord` domain types — it never touches profile fields (name, theme, notification preferences, ...), which stay owned by `apps/backend`.
 
 **Feature modules** live under `apps/backend/src/modules/*` (`users`, `file`, `mail`, `notification`, `captcha`, `admin`, `health`, `migration`). Each non-trivial module is internally layered:
 
@@ -74,10 +80,10 @@ modules/<name>/
 Rules that hold across the codebase:
 
 - **Controllers never contain business logic.** They validate input (DTO + `ValidationPipe`) and dispatch a `CommandBus`/`QueryBus` call. All decision-making lives in a handler.
-- **Domain entities are plain classes**, decoupled from Drizzle. Repository abstract classes (e.g. `UserRepository`) act as both the interface and the DI token; the concrete `*RepositoryDrizzle` implementation is bound in the module's `providers` (`{ provide: UserRepository, useClass: UserRepositoryDrizzle }`). Swapping persistence later means writing a new adapter, not touching application code.
+- **Nothing holds an infrastructure dependency (ORM, HTTP/gRPC client) directly** — only an abstract class (the port), with exactly one adapter implementing it, bound in the module's `providers`. `UserRepository → UserRepositoryDrizzle` and `AuthGatewayPort → AuthGrpcGatewayAdapter` are the same pattern; swapping an implementation later means writing a new adapter, not touching application code.
 - **Cross-module communication goes through the `EventBus`**, not direct service calls. E.g. `UserCreatedEvent` (published in `users`) is consumed independently by `mail` (welcome email) and `notification` (welcome notification).
-- There is no separate `auth` module — authentication lives inside `UsersModule` (`presentation/controllers/auth.controller.ts`) because it's tightly coupled to the user aggregate (login attempts, lockout state, roles).
-- Global cross-cutting pieces (guards, decorators, exceptions, interceptors, i18n, config, CASL ability factory) live directly under `apps/backend/src/*`, not inside a module.
+- Authentication's HTTP surface still lives inside `UsersModule` (`presentation/controllers/auth.controller.ts`) — tightly coupled to the user aggregate (login attempts, lockout state, roles) even though the CPU-heavy verification now runs in `apps/auth-service`.
+- Global cross-cutting pieces (guards, decorators, exceptions, interceptors, i18n, config, CASL ability factory) live directly under `apps/backend/src/*`, not inside a module. CASL/RBAC in particular stays entirely in `apps/backend` — it's authorization checked on every protected request across every module, not an auth-service concern.
 
 ## Project structure
 
@@ -86,19 +92,19 @@ apps/backend/
   src/
     main.ts                  # Fastify bootstrap, Swagger, security headers, global pipes/filters
     app.module.ts             # root module wiring
-    config/                   # YAML config loader
+    config/                   # YAML config loader (re-exports libs/common/configuration)
     common/
-      drizzle/                 # DB connection, schema (all tables), migration module
+      drizzle/                 # DB connection, schema (non-auth tables), migration module
       crypto/                   # AES-256-GCM field encryption service
     decorators/                # @CurrentUserId, @CurrentRoleId, @CurrentRoleType, @Policy
     guards/                    # JwtAuthGuard, PoliciesGuard, CsrfGuard
     factories/                 # CaslAbilityFactory
     i18n/                      # translation files (ru/en) + i18n service
     interceptors/, exceptions/ # response shaping, global exception filter
-    enums/, interfaces/        # shared enums (RoleType, Actions, Subjects, AuthMode…) and types
+    enums/, interfaces/        # shared enums/types — several are thin re-exports of libs/* (see below)
     options/                   # async module option factories (bullmq, mailer, s3, throttler, logger)
     modules/
-      users/                   # accounts, roles/permissions, auth, magic link, password reset
+      users/                   # accounts, roles/permissions, auth HTTP surface (AuthGatewayPort → gRPC)
       file/                    # S3-backed file storage with versioning
       mail/                    # templated email delivery via queue (no HTTP surface)
       notification/            # in-app notifications
@@ -107,8 +113,28 @@ apps/backend/
       health/                  # liveness/readiness checks
       migration/               # boot-time seeding (roles, admin user, templates)
   scripts/                    # migrate.cjs, load-config.cjs
-drizzle/migrations/           # generated SQL migrations
-docker/                       # docker-compose.yaml, Dockerfile, .env.example, config.docker.yaml
+
+apps/auth-service/
+  src/
+    main.ts                  # gRPC microservice bootstrap (Transport.GRPC, no HTTP surface)
+    app.module.ts
+    drizzle.provider.ts       # own connection pool against libs/database's schema
+    modules/auth/
+      domain/                 # AuthUser/RefreshTokenRecord/PasswordResetToken — narrow, auth-only fields
+      application/             # LoginCommand/Handler + 5 more, mirror apps/backend's former logic
+      infrastructure/          # Drizzle repos, TokenIssuerService (JWT), MailProducerService (BullMQ)
+      presentation/            # AuthGrpcController (@GrpcMethod, converts proto ↔ commands)
+
+libs/
+  contracts/
+    auth/                    # auth.proto + hand-written TS types + failure-reason enums
+    users/                   # RoleType (shared JWT payload / CASL contract)
+  auth/                      # PasswordService/PasswordServiceAdapter, JWT payload shape, AuthMode
+  database/                  # shared Drizzle schema (user/user_role/role_permission/refresh/password_reset_token)
+  common/                    # IdType, IBaseEntity, YAML config loader
+
+drizzle/migrations/           # generated SQL migrations (schema is centrally owned/migrated by apps/backend)
+docker/                       # docker-compose.yaml, both Dockerfiles, .env.example, config.docker.yaml
 test/                         # e2e harness, integration tests, shared setup
 config.yaml.example           # documented local config template
 config.production.yaml.example
@@ -348,9 +374,10 @@ One behavior worth knowing before running tests against a shared database: `User
 | `minio`        | `minio/minio`               | S3-compatible object storage                    |
 | `minio-init`   | `minio/mc`                  | one-shot bucket creation + versioning           |
 | `mailpit`      | `axllent/mailpit`           | local SMTP catcher + web UI (dev/test only)     |
-| `backend`      | built from `docker/backend.Dockerfile` | the API itself                       |
+| `auth-service` | built from `docker/auth-service.Dockerfile` | gRPC-only credential/token service, capped at `cpus: 4.0` |
+| `backend`      | built from `docker/backend.Dockerfile` | the API itself, dials `auth-service` via gRPC (`AUTH_SERVICE_GRPC_URL`) |
 
-The backend image (`docker/backend.Dockerfile`) is a two-stage build (build → slim `node:22-alpine` runtime). Its container command runs migrations before starting the server: `node apps/backend/scripts/migrate.cjs && node dist/apps/backend/main.js` — **migrations apply automatically on every container start**, so a fresh deploy never needs a manual migration step.
+Both images are two-stage builds (build → slim `node:22-alpine` runtime) and each copies `libs/` into its runtime stage — the `.proto` contract and shared schema are read from disk at runtime, not compiled in. The backend container runs migrations before starting the server: `node apps/backend/scripts/migrate.cjs && node dist/apps/backend/apps/backend/src/main.js` — **migrations apply automatically on every container start**, so a fresh deploy never needs a manual migration step. `auth-service` has no migrations of its own — it connects to the same, already-migrated database.
 
 Steps for a real deployment:
 
@@ -386,4 +413,5 @@ Two pre-existing defects, unrelated to any specific dependency version, were als
 
 ## Roadmap
 
-- Third-party OAuth login (Google, Yandex — VK deferred pending its VK ID/OAuth2+PKCE migration) as an additional entry into the existing `AuthServiceAdapter`/cookie session flow, alongside password and magic-link login.
+- Third-party OAuth login (Google, Yandex — VK deferred pending its VK ID/OAuth2+PKCE migration) as an additional `apps/auth-service` RPC + a new entry in `AuthGatewayPort`, alongside password login.
+- Magic-link authentication: the token-issuing "redeem" handler was removed when JWT signing moved into `apps/auth-service` (it can no longer issue tokens locally). Requesting a magic link still works; redemption needs to be rebuilt as a 7th gRPC method following the same `AuthGatewayPort` pattern as the other flows.

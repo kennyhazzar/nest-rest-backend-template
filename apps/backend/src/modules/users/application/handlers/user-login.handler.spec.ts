@@ -1,22 +1,23 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { EventBus } from '@nestjs/cqrs';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { FastifyReply, FastifyRequest } from 'fastify';
 
-import { MailRepository } from '@/modules/mail/domain/repositories/mail.repository';
-import { MailService } from '@/modules/mail/infrastructure/services/mail.service';
-import { AuthServiceAdapter } from '../../infrastructure/adapters';
-import { PasswordService } from '../../domain/services/password.service';
+import { LoginFailureReason, LoginResponse } from '@libs/contracts/auth';
 import { User, type IUserRole } from '../../domain/entities';
 import { UserRepository } from '../../domain/repositories';
+import { AuthGatewayPort } from '../../domain/services/auth-gateway.port';
 import { UserLoginCommand } from '../commands';
 import { LoginUserHandler } from './user-login.handler';
 
 describe('LoginUserHandler', () => {
   let handler: LoginUserHandler;
   let userRepository: jest.Mocked<UserRepository>;
-  let passwordService: jest.Mocked<PasswordService>;
-  let mailRepository: jest.Mocked<MailRepository>;
-  let mailService: jest.Mocked<MailService>;
+  let authGateway: jest.Mocked<AuthGatewayPort>;
+
+  const request = { ip: '127.0.0.1', headers: {} } as FastifyRequest;
+  const reply = { setCookie: jest.fn(), clearCookie: jest.fn() } as unknown as FastifyReply;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -24,74 +25,68 @@ describe('LoginUserHandler', () => {
         LoginUserHandler,
         {
           provide: UserRepository,
-          useValue: {
-            findByEmail: jest.fn(),
-            update: jest.fn().mockResolvedValue({ affected: 1 }),
-          },
-        },
-        {
-          provide: AuthServiceAdapter,
-          useValue: {},
-        },
-        {
-          provide: PasswordService,
-          useValue: {
-            verifyPassword: jest.fn(),
-            needsRehash: jest.fn().mockReturnValue(false),
-            hashPassword: jest.fn(),
-          },
+          useValue: { findById: jest.fn() },
         },
         {
           provide: EventBus,
           useValue: { publish: jest.fn() },
         },
         {
-          provide: MailRepository,
-          useValue: {
-            create: jest.fn().mockResolvedValue({ id: 'mail-1' }),
-          },
+          provide: AuthGatewayPort,
+          useValue: { login: jest.fn() },
         },
         {
-          provide: MailService,
-          useValue: {
-            addToQueue: jest.fn().mockResolvedValue(undefined),
-          },
+          provide: ConfigService,
+          useValue: { get: jest.fn((_key: string, defaultValue: unknown) => defaultValue) },
         },
       ],
     }).compile();
 
     handler = module.get(LoginUserHandler);
     userRepository = module.get(UserRepository);
-    passwordService = module.get(PasswordService);
-    mailRepository = module.get(MailRepository);
-    mailService = module.get(MailService);
+    authGateway = module.get(AuthGatewayPort);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
-    jest.useRealTimers();
   });
 
-  it('rejects a temporarily locked account before password verification', async () => {
-    const lockedUntil = new Date(Date.now() + 60_000);
-    userRepository.findByEmail.mockResolvedValue(makeUser({ lockedUntil, failedLoginAttempts: 5 }));
+  function login(): Promise<unknown> {
+    return handler.execute(new UserLoginCommand({ email: 'admin@example.com', password: 'WrongPassword123!' }, request, reply));
+  }
+
+  function mockLoginResult(overrides: Partial<LoginResponse>): void {
+    authGateway.login.mockResolvedValue({
+      success: false,
+      accessToken: '',
+      refreshToken: '',
+      csrfToken: '',
+      userId: '',
+      email: '',
+      failureReason: '',
+      lockedUntil: '',
+      requiresCaptcha: false,
+      ...overrides,
+    });
+  }
+
+  it('rejects when the account is temporarily locked', async () => {
+    mockLoginResult({
+      failureReason: LoginFailureReason.ACCOUNT_LOCKED,
+      lockedUntil: '2026-07-01T10:30:00.000Z',
+    });
 
     await expect(login()).rejects.toThrow(ForbiddenException);
     await expect(login()).rejects.toMatchObject({
       response: expect.objectContaining({
         message: 'user.auth.accountLocked',
-        lockedUntil: lockedUntil.toISOString(),
+        lockedUntil: '2026-07-01T10:30:00.000Z',
       }),
     });
-
-    expect(passwordService.verifyPassword).not.toHaveBeenCalled();
-    expect(userRepository.update).not.toHaveBeenCalled();
   });
 
-  it('increments failed login attempts and asks frontend to enable captcha from the third failure', async () => {
-    const failedLoginWindowStartedAt = new Date(Date.now() - 60_000);
-    userRepository.findByEmail.mockResolvedValue(makeUser({ failedLoginAttempts: 2, failedLoginWindowStartedAt }));
-    passwordService.verifyPassword.mockResolvedValue(false);
+  it('surfaces requiresCaptcha on invalid credentials', async () => {
+    mockLoginResult({ failureReason: LoginFailureReason.INVALID_CREDENTIALS, requiresCaptcha: true });
 
     await expect(login()).rejects.toThrow(UnauthorizedException);
     await expect(login()).rejects.toMatchObject({
@@ -100,79 +95,45 @@ describe('LoginUserHandler', () => {
         requiresCaptcha: true,
       }),
     });
-
-    expect(userRepository.update).toHaveBeenCalledWith('user-1', {
-      failedLoginAttempts: 3,
-      failedLoginWindowStartedAt,
-      lockedUntil: null,
-    });
-    expect(mailRepository.create).not.toHaveBeenCalled();
-    expect(mailService.addToQueue).not.toHaveBeenCalled();
   });
 
-  it('locks account for 30 minutes and queues an email on the fifth failure', async () => {
-    const now = new Date('2026-07-01T10:00:00.000Z');
-    const failedLoginWindowStartedAt = new Date('2026-07-01T09:50:00.000Z');
-    jest.useFakeTimers().setSystemTime(now);
-    userRepository.findByEmail.mockResolvedValue(makeUser({ failedLoginAttempts: 4, failedLoginWindowStartedAt }));
-    passwordService.verifyPassword.mockResolvedValue(false);
-
-    await expect(login()).rejects.toThrow(UnauthorizedException);
-
-    expect(userRepository.update).toHaveBeenCalledWith('user-1', {
-      failedLoginAttempts: 5,
-      failedLoginWindowStartedAt,
-      lockedUntil: new Date('2026-07-01T10:30:00.000Z'),
-    });
-    expect(mailRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: 'admin@example.com',
-        subject: 'Security alert: account temporarily locked',
-      }),
-    );
-    expect(mailService.addToQueue).toHaveBeenCalledWith(expect.objectContaining({ id: 'mail-1' }));
+  it('rejects unverified accounts', async () => {
+    mockLoginResult({ failureReason: LoginFailureReason.NOT_VERIFIED });
+    await expect(login()).rejects.toMatchObject({ message: 'user.auth.verified' });
   });
 
-  it('starts a new failure window when the previous one is older than 15 minutes', async () => {
-    const now = new Date('2026-07-01T10:20:00.000Z');
-    jest.useFakeTimers().setSystemTime(now);
-    userRepository.findByEmail.mockResolvedValue(
-      makeUser({ failedLoginAttempts: 4, failedLoginWindowStartedAt: new Date('2026-07-01T10:00:00.000Z') }),
-    );
-    passwordService.verifyPassword.mockResolvedValue(false);
-
-    await expect(login()).rejects.toThrow(UnauthorizedException);
-
-    expect(userRepository.update).toHaveBeenCalledWith('user-1', {
-      failedLoginAttempts: 1,
-      failedLoginWindowStartedAt: now,
-      lockedUntil: null,
-    });
-    expect(mailRepository.create).not.toHaveBeenCalled();
+  it('rejects blocked accounts', async () => {
+    mockLoginResult({ failureReason: LoginFailureReason.BLOCKED });
+    await expect(login()).rejects.toMatchObject({ message: 'user.auth.blocked' });
   });
 
-  it('resets failed attempts, failure window and lock flag after a successful login', async () => {
-    userRepository.findByEmail.mockResolvedValue(
-      makeUser({
-        failedLoginAttempts: 2,
-        failedLoginWindowStartedAt: new Date(Date.now() - 60_000),
-        lockedUntil: null,
-      }),
-    );
-    passwordService.verifyPassword.mockResolvedValue(true);
-
-    await expect(login()).resolves.toMatchObject({ id: 'user-1' });
-
-    expect(userRepository.update).toHaveBeenCalledWith('user-1', {
-      failedLoginAttempts: 0,
-      failedLoginWindowStartedAt: null,
-      lockedUntil: null,
-    });
+  it('rejects when the account does not exist without leaking that detail', async () => {
+    mockLoginResult({ failureReason: LoginFailureReason.USER_NOT_FOUND });
+    await expect(login()).rejects.toMatchObject({ message: 'user.auth.invalidCredentials' });
   });
 
-  function login(): Promise<User> {
-    return handler.execute(new UserLoginCommand({ email: 'admin@example.com', password: 'WrongPassword123!' }));
-  }
+  it('returns the mapped user and tokens on success, and sets auth cookies', async () => {
+    authGateway.login.mockResolvedValue({
+      success: true,
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      csrfToken: 'csrf-token',
+      userId: 'user-1',
+      email: 'admin@example.com',
+      failureReason: '',
+      lockedUntil: '',
+      requiresCaptcha: false,
+    });
+    userRepository.findById.mockResolvedValue(makeUser());
+
+    await expect(login()).resolves.toMatchObject({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      user: expect.objectContaining({ id: 'user-1' }),
+    });
+
+    expect(reply.setCookie).toHaveBeenCalled();
+  });
 });
 
 function makeUser(overrides: Partial<User> = {}): User {

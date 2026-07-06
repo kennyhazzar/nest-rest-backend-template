@@ -11,7 +11,7 @@ import {
   pgEnum,
   jsonb,
 } from 'drizzle-orm/pg-core';
-import { user } from './users.schema';
+import { user } from '@libs/database/users.schema';
 
 // Enums
 export const notificationTypeEnum = pgEnum('NotificationType', ['SYSTEM', 'INFO', 'WARNING', 'SUCCESS', 'ERROR']);

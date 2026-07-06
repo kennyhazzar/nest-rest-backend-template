@@ -1,10 +1,8 @@
 import { BadRequestException, Logger } from '@nestjs/common';
 import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 
-import { UserRepository } from '../../domain/repositories/user.repository';
-import { PasswordResetTokenRepository } from '../../domain/repositories/password-reset-token.repository';
-import { PasswordService } from '../../domain/services/password.service';
-import { AuthServiceAdapter } from '../../infrastructure/adapters/auth-service.adapter';
+import { ResetPasswordFailureReason } from '@libs/contracts/auth';
+import { AuthGatewayPort } from '../../domain/services/auth-gateway.port';
 import { ResetPasswordCommand } from '../commands/reset-password.command';
 import { PasswordResetCompletedEvent } from '../events/auth.events';
 
@@ -13,32 +11,26 @@ export class ResetPasswordHandler implements ICommandHandler<ResetPasswordComman
   private readonly logger = new Logger(ResetPasswordHandler.name);
 
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly resetTokenRepository: PasswordResetTokenRepository,
-    private readonly passwordService: PasswordService,
-    private readonly authService: AuthServiceAdapter,
+    private readonly authGateway: AuthGatewayPort,
     private readonly eventBus: EventBus,
   ) {}
 
   async execute({ token, newPassword }: ResetPasswordCommand): Promise<{ success: boolean }> {
-    if (newPassword.length < 12) {
-      this.logger.warn('Password reset rejected: reason=new_password_too_short');
-      throw new BadRequestException('user.auth.passwordMinLength');
+    const result = await this.authGateway.resetPassword({ token, newPassword });
+
+    if (!result.success) {
+      this.logger.warn(`Password reset rejected: reason=${result.failureReason}`);
+      switch (result.failureReason) {
+        case ResetPasswordFailureReason.WEAK_PASSWORD:
+          throw new BadRequestException('user.auth.passwordMinLength');
+        case ResetPasswordFailureReason.TOKEN_INVALID_OR_EXPIRED:
+        default:
+          throw new BadRequestException('user.auth.resetTokenInvalidOrExpired');
+      }
     }
 
-    const record = await this.resetTokenRepository.findByToken(token);
-    if (!record || !record.isValid()) {
-      this.logger.warn('Password reset rejected: reason=reset_token_invalid_or_expired');
-      throw new BadRequestException('user.auth.resetTokenInvalidOrExpired');
-    }
-
-    const passwordHash = await this.passwordService.hashPassword(newPassword);
-    await this.userRepository.update(record.userId, { password: passwordHash });
-    await this.resetTokenRepository.markUsed(record.id);
-    await this.authService.revokeAllRefreshTokensForUser(record.userId);
-    this.eventBus.publish(new PasswordResetCompletedEvent(record.userId));
-    this.logger.log(`Password reset completed: userId=${record.userId} refreshTokensRevoked=true`);
-
+    this.eventBus.publish(new PasswordResetCompletedEvent(result.userId));
+    this.logger.log(`Password reset completed: userId=${result.userId}`);
     return { success: true };
   }
 }

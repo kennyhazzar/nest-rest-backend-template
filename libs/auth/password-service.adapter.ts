@@ -3,8 +3,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { PasswordHashType } from '@/enums/password-hash-type.enum';
-import { PasswordService } from '@/modules/users/domain/services/password.service';
+import { PasswordHashType } from './password-hash-type.enum';
+import { PasswordService } from './password.service';
 
 /**
  * Password service implementation using Argon2id

@@ -67,15 +67,22 @@ export class NotificationRepositoryDrizzle extends NotificationRepository {
     conditions.push(eq(notification.channel, options?.channel ?? NotificationChannel.IN_APP));
     if (options?.isRead !== undefined) conditions.push(eq(notification.isRead, options.isRead));
     const where = and(...conditions);
-    const rows = await this.db
-      .select()
-      .from(notification)
-      .where(where)
-      .orderBy(desc(notification.createdAt))
-      .limit(options?.take ?? 20)
-      .offset(options?.skip ?? 0);
-    const [{ value: totalCount }] = await this.db.select({ value: count() }).from(notification).where(where);
-    const unreadCount = await this.getUnreadCount(userId);
+
+    // Data, total count, and unread count are independent reads against the same filter —
+    // run them concurrently instead of three serialized round trips.
+    const [rows, totalCountResult, unreadCount] = await Promise.all([
+      this.db
+        .select()
+        .from(notification)
+        .where(where)
+        .orderBy(desc(notification.createdAt))
+        .limit(options?.take ?? 20)
+        .offset(options?.skip ?? 0),
+      this.db.select({ value: count() }).from(notification).where(where),
+      this.getUnreadCount(userId),
+    ]);
+    const totalCount = totalCountResult[0].value;
+
     return Notifications.create(
       rows.map((row) => this.toDomain(row)),
       totalCount,

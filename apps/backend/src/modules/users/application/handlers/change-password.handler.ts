@@ -1,9 +1,8 @@
 import { BadRequestException, Logger, UnauthorizedException } from '@nestjs/common';
 import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 
-import { UserRepository } from '../../domain/repositories/user.repository';
-import { PasswordService } from '../../domain/services/password.service';
-import { AuthServiceAdapter } from '../../infrastructure/adapters/auth-service.adapter';
+import { ChangePasswordFailureReason } from '@libs/contracts/auth';
+import { AuthGatewayPort } from '../../domain/services/auth-gateway.port';
 import { ChangePasswordCommand } from '../commands/change-password.command';
 import { PasswordChangedEvent } from '../events/auth.events';
 
@@ -12,40 +11,30 @@ export class ChangePasswordHandler implements ICommandHandler<ChangePasswordComm
   private readonly logger = new Logger(ChangePasswordHandler.name);
 
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly passwordService: PasswordService,
-    private readonly authService: AuthServiceAdapter,
+    private readonly authGateway: AuthGatewayPort,
     private readonly eventBus: EventBus,
   ) {}
 
   async execute({ userId, currentPassword, newPassword }: ChangePasswordCommand): Promise<{ success: boolean }> {
-    if (newPassword.length < 12) {
-      this.logger.warn(`Password change rejected: userId=${userId} reason=new_password_too_short`);
-      throw new BadRequestException('user.auth.passwordMinLength');
+    const result = await this.authGateway.changePassword({ userId, currentPassword, newPassword });
+
+    if (!result.success) {
+      this.logger.warn(`Password change rejected: userId=${userId} reason=${result.failureReason}`);
+      switch (result.failureReason) {
+        case ChangePasswordFailureReason.WEAK_PASSWORD:
+          throw new BadRequestException('user.auth.passwordMinLength');
+        case ChangePasswordFailureReason.USER_NOT_FOUND:
+          throw new UnauthorizedException('user.notFound');
+        case ChangePasswordFailureReason.PASSWORD_NOT_CONFIGURED:
+          throw new UnauthorizedException('user.auth.passwordNotConfigured');
+        case ChangePasswordFailureReason.CURRENT_PASSWORD_INVALID:
+        default:
+          throw new UnauthorizedException('user.auth.currentPasswordInvalid');
+      }
     }
 
-    const user = await this.userRepository.findById(userId, { includePassword: true });
-    if (!user) {
-      this.logger.warn(`Password change rejected: userId=${userId} reason=user_not_found`);
-      throw new UnauthorizedException('user.notFound');
-    }
-    if (!user.password) {
-      this.logger.warn(`Password change rejected: userId=${userId} reason=password_not_configured`);
-      throw new UnauthorizedException('user.auth.passwordNotConfigured');
-    }
-
-    const valid = await this.passwordService.verifyPassword(user.password, currentPassword);
-    if (!valid) {
-      this.logger.warn(`Password change rejected: userId=${userId} reason=current_password_invalid`);
-      throw new UnauthorizedException('user.auth.currentPasswordInvalid');
-    }
-
-    const passwordHash = await this.passwordService.hashPassword(newPassword);
-    await this.userRepository.update(userId, { password: passwordHash });
-    await this.authService.revokeAllRefreshTokensForUser(userId);
     this.eventBus.publish(new PasswordChangedEvent(userId));
-    this.logger.log(`Password changed: userId=${userId} refreshTokensRevoked=true`);
-
+    this.logger.log(`Password changed: userId=${userId}`);
     return { success: true };
   }
 }

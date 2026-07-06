@@ -1,10 +1,10 @@
-import { Algorithm } from 'jsonwebtoken';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CqrsModule } from '@nestjs/cqrs';
-import { JwtModule } from '@nestjs/jwt';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { PassportModule } from '@nestjs/passport';
 
+import { AUTH_GRPC_CLIENT, AUTH_PACKAGE_NAME, resolveAuthProtoPath } from '@libs/contracts/auth';
 import { CaslAbilityFactory } from '../../factories/casl-ability.factory';
 import {
   UserRepository,
@@ -13,7 +13,8 @@ import {
   MagicLinkTokenRepository,
 } from './domain/repositories';
 import { PasswordResetTokenRepository } from './domain/repositories/password-reset-token.repository';
-import { PasswordService } from './domain/services/password.service';
+import { PasswordService } from '@libs/auth/password.service';
+import { AuthGatewayPort } from './domain/services/auth-gateway.port';
 import {
   UserRepositoryDrizzle,
   UserRoleRepositoryDrizzle,
@@ -22,10 +23,10 @@ import {
 } from './infrastructure/repositories/drizzle';
 import { PasswordResetTokenRepositoryDrizzle } from './infrastructure/repositories/drizzle/password-reset-token-repository.drizzle';
 import { AuthController, UserController, UserRoleController } from './presentation/controllers';
-import { AuthServiceAdapter } from './infrastructure/adapters/auth-service.adapter';
-import { PasswordServiceAdapter } from './infrastructure/adapters/password-service.adapter';
+import { AuthGrpcGatewayAdapter } from './infrastructure/adapters/auth-grpc-gateway.adapter';
+import { PasswordServiceAdapter } from '@libs/auth/password-service.adapter';
 import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
-import { PoliciesService } from './infrastructure/services/policies.service';
+import { AuthTokenVersionService, PoliciesService } from './infrastructure/services';
 import {
   LoginUserHandler,
   UserLogoutHandler,
@@ -44,7 +45,6 @@ import {
   UserRoleGetByIdHandler,
   UserRolesGetHandler,
   MagicLinkRequestHandler,
-  MagicLinkAuthenticateHandler,
   ForgotPasswordHandler,
   ResetPasswordHandler,
   ChangePasswordHandler,
@@ -65,7 +65,6 @@ const CommandHandlers = [
   UserRoleUpdateHandler,
   UserRoleDeleteHandler,
   MagicLinkRequestHandler,
-  MagicLinkAuthenticateHandler,
   ForgotPasswordHandler,
   ResetPasswordHandler,
   ChangePasswordHandler,
@@ -87,23 +86,27 @@ const QueryHandlers = [
   controllers: [AuthController, UserController, UserRoleController],
   imports: [
     PassportModule,
-    JwtModule.registerAsync({
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.getOrThrow('jwt.access.token'),
-        signOptions: {
-          algorithm: configService.get<Algorithm>('jwt.access.jwtAlgorithm', 'HS256'),
-          expiresIn: configService.get('jwt.access.expires'),
-        },
-      }),
-      inject: [ConfigService],
-    }),
     CqrsModule,
+    ClientsModule.registerAsync([
+      {
+        name: AUTH_GRPC_CLIENT,
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.GRPC,
+          options: {
+            package: AUTH_PACKAGE_NAME,
+            protoPath: resolveAuthProtoPath(),
+            url: configService.getOrThrow<string>('grpc.authService.url'),
+          },
+        }),
+        inject: [ConfigService],
+      },
+    ]),
   ],
   providers: [
     JwtStrategy,
     CaslAbilityFactory,
     PoliciesService,
-    AuthServiceAdapter,
+    AuthTokenVersionService,
     ...CommandHandlers,
     ...QueryHandlers,
     { provide: UserRepository, useClass: UserRepositoryDrizzle },
@@ -112,12 +115,13 @@ const QueryHandlers = [
     { provide: MagicLinkTokenRepository, useClass: MagicLinkTokenRepositoryDrizzle },
     { provide: PasswordResetTokenRepository, useClass: PasswordResetTokenRepositoryDrizzle },
     { provide: PasswordService, useClass: PasswordServiceAdapter },
+    { provide: AuthGatewayPort, useClass: AuthGrpcGatewayAdapter },
   ],
   exports: [
     UserRepository,
-    AuthServiceAdapter,
     PasswordService,
     PoliciesService,
+    AuthTokenVersionService,
     CaslAbilityFactory,
     UserRoleRepository,
     RolePermissionRepository,

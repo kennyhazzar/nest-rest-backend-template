@@ -20,6 +20,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { CaptchaModule } from './modules/captcha/captcha.module';
 import { I18nModule } from './i18n';
 import { loadConfiguration } from './config/configuration';
+import { CsrfGuard } from './guards/csrf.guard';
 
 @Module({
   imports: [
@@ -62,6 +63,10 @@ import { loadConfiguration } from './config/configuration';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: CsrfGuard,
     },
   ],
 })

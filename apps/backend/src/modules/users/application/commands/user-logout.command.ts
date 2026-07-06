@@ -1,7 +1,13 @@
 import { Command } from '@nestjs/cqrs';
+import { FastifyReply } from 'fastify';
 
-export class UserLogoutCommand extends Command<boolean> {
-  constructor(public readonly refreshToken: string) {
+import { LogoutResponseDto } from '../../presentation/dtos';
+
+export class UserLogoutCommand extends Command<LogoutResponseDto> {
+  constructor(
+    public readonly refreshToken: string,
+    public readonly reply: FastifyReply,
+  ) {
     super();
   }
 }

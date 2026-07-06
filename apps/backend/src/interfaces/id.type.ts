@@ -1,1 +1,1 @@
-export type IdType = string;
+export type { IdType } from '@libs/common/id.type';

@@ -11,7 +11,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
-import { user } from './users.schema';
+import { user } from '@libs/database/users.schema';
 
 export const captchaTemplateTypeEnum = pgEnum('captcha_template_type', ['image_text', 'math_expression']);
 export const captchaTemplateStatusEnum = pgEnum('captcha_template_status', ['draft', 'active', 'archived']);

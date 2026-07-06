@@ -10,7 +10,7 @@
     "assets": [
       {
         "include": "assets/**/*",
-        "outDir": "dist/apps/backend",
+        "outDir": "dist/apps/backend/apps/backend/src",
         "watchAssets": true,
         "watchOptions": {
           "ignored": "**/*.ts"
@@ -18,17 +18,17 @@
       },
       {
         "include": "i18n/**/*.json",
-        "outDir": "dist/apps/backend",
+        "outDir": "dist/apps/backend/apps/backend/src",
         "watchAssets": true
       },
       {
         "include": "options/templates/**/*.hbs",
-        "outDir": "dist/apps/backend",
+        "outDir": "dist/apps/backend/apps/backend/src",
         "watchAssets": true
       },
       {
         "include": "proto/**/*.proto",
-        "outDir": "dist/apps/backend",
+        "outDir": "dist/apps/backend/apps/backend/src",
         "watchAssets": true
       }
     ]
@@ -36,6 +36,15 @@
   "monorepo": true,
   "root": "apps/backend",
   "projects": {
+    "auth-service": {
+      "type": "application",
+      "root": "apps/auth-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/auth-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/auth-service/tsconfig.app.json"
+      }
+    },
     "backend": {
       "type": "application",
       "root": "apps/backend",

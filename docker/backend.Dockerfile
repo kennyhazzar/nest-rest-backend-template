@@ -19,10 +19,11 @@ COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 COPY --from=build --chown=node:node /app/apps/backend/scripts ./apps/backend/scripts
 COPY --from=build --chown=node:node /app/drizzle ./drizzle
+COPY --from=build --chown=node:node /app/libs ./libs
 RUN mkdir -p /app/upload /app/logs && chown node:node /app/upload /app/logs
 
 EXPOSE 3000
 
 USER node
 
-CMD ["sh", "-c", "node apps/backend/scripts/migrate.cjs && node dist/apps/backend/main.js"]
+CMD ["sh", "-c", "node apps/backend/scripts/migrate.cjs && node dist/apps/backend/apps/backend/src/main.js"]

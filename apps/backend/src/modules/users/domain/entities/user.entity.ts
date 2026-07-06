@@ -29,6 +29,7 @@ export class User implements IUser {
   failedLoginAttempts!: number;
   failedLoginWindowStartedAt?: Date | null;
   lockedUntil?: Date | null;
+  tokenVersion!: number;
   country!: string;
   language!: string;
   locale!: string;
@@ -48,6 +49,7 @@ export class User implements IUser {
       failedLoginAttempts: 0,
       failedLoginWindowStartedAt: null,
       lockedUntil: null,
+      tokenVersion: 1,
       ...data,
     });
     return user;

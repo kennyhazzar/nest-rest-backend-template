@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package auth;
+
+// Auth-service RPC contract. Every RPC returns a normal (200-equivalent) response with a
+// `success` discriminator instead of throwing gRPC errors for expected business failures
+// (wrong password, expired token, ...) — the caller (apps/backend) translates `failureReason`
+// into the same HTTP exceptions / i18n keys / domain events it already produces today.
+// Only genuinely unexpected errors (DB down, bug) surface as real gRPC errors.
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshTokens(RefreshTokensRequest) returns (RefreshTokensResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc ForgotPassword(ForgotPasswordRequest) returns (ForgotPasswordResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string requestIp = 3;
+  string userAgent = 4;
+}
+
+// failureReason (when !success): USER_NOT_FOUND | NOT_VERIFIED | BLOCKED | ACCOUNT_LOCKED | INVALID_CREDENTIALS
+message LoginResponse {
+  bool success = 1;
+  string accessToken = 2;
+  string refreshToken = 3;
+  string csrfToken = 4;
+  string userId = 5;
+  string email = 6;
+  string failureReason = 7;
+  string lockedUntil = 8;
+  bool requiresCaptcha = 9;
+}
+
+message RefreshTokensRequest {
+  string refreshToken = 1;
+  string requestIp = 2;
+  string userAgent = 3;
+}
+
+// failureReason (when !success): INVALID_JWT_PAYLOAD | TOKEN_NOT_FOUND | TOKEN_REVOKED | TOKEN_EXPIRED
+//                                 | USER_NOT_FOUND | NOT_VERIFIED | BLOCKED
+message RefreshTokensResponse {
+  bool success = 1;
+  string accessToken = 2;
+  string refreshToken = 3;
+  string csrfToken = 4;
+  string failureReason = 5;
+}
+
+message LogoutRequest {
+  string refreshToken = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
+message ForgotPasswordRequest {
+  string email = 1;
+}
+
+// Always succeeds from the caller's point of view (no account enumeration). userId is empty
+// when the account doesn't exist / is blocked — internal detail, used only for audit events.
+message ForgotPasswordResponse {
+  bool success = 1;
+  string userId = 2;
+}
+
+message ResetPasswordRequest {
+  string token = 1;
+  string newPassword = 2;
+}
+
+// failureReason (when !success): WEAK_PASSWORD | TOKEN_INVALID_OR_EXPIRED
+message ResetPasswordResponse {
+  bool success = 1;
+  string userId = 2;
+  string failureReason = 3;
+}
+
+message ChangePasswordRequest {
+  string userId = 1;
+  string currentPassword = 2;
+  string newPassword = 3;
+}
+
+// failureReason (when !success): WEAK_PASSWORD | USER_NOT_FOUND | PASSWORD_NOT_CONFIGURED | CURRENT_PASSWORD_INVALID
+message ChangePasswordResponse {
+  bool success = 1;
+  string failureReason = 2;
+}

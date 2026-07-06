@@ -10,7 +10,7 @@ import { IdType } from '@/interfaces/id.type';
 import { DRIZZLE_CONNECTION } from '@/common/drizzle/drizzle.provider';
 import * as schema from '@/common/drizzle/schema';
 import { User } from '../users/domain/entities';
-import { PasswordService } from '../users/domain/services/password.service';
+import { PasswordService } from '@libs/auth/password.service';
 import { RolesSeedService } from './roles-seed.service';
 import { UserRepository, UserRoleRepository } from '../users/domain/repositories';
 

@@ -1,5 +1,5 @@
 import { index, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
-import { user } from './users.schema';
+import { user } from '@libs/database/users.schema';
 
 export const accessLog = pgTable(
   'access_log',

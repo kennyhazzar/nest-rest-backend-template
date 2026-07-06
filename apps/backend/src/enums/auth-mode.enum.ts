@@ -1,5 +1,1 @@
-export enum AuthMode {
-  COOKIES_ONLY = 'COOKIES_ONLY',
-  RESPONSE_ONLY = 'RESPONSE_ONLY',
-  HYBRID = 'HYBRID',
-}
+export * from '@libs/auth/auth-mode.enum';

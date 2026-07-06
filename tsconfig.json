@@ -25,9 +25,21 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@/unit/*": ["./test/unit/*"],
-      "@/*": ["./apps/backend/src/*"]
+      "@/*": [
+        "./apps/backend/src/*"
+      ],
+      "@/unit/*": [
+        "./test/unit/*"
+      ],
+      "@libs/*": [
+        "./libs/*"
+      ]
     }
   },
-  "exclude": ["eslint.config.mjs", "node_modules", "dist", "coverage"]
+  "exclude": [
+    "eslint.config.mjs",
+    "node_modules",
+    "dist",
+    "coverage"
+  ]
 }

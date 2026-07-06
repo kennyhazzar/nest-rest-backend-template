@@ -4,7 +4,7 @@ import { EventBus, QueryBus } from '@nestjs/cqrs';
 import { UserCreateHandler } from './user-create.handler';
 import { UserCreateCommand } from '../commands';
 import { UserRepository } from '../../domain/repositories';
-import { PasswordService } from '../../domain/services/password.service';
+import { PasswordService } from '@libs/auth/password.service';
 import { User } from '../../domain/entities';
 import { UserMapper } from '../../presentation/mappers';
 

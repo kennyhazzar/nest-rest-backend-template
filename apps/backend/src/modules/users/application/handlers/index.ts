@@ -15,7 +15,6 @@ export * from './user-role-delete.handler';
 export * from './user-role-get-by-id.handler';
 export * from './user-roles-get.handler';
 export * from './magic-link-request.handler';
-export * from './magic-link-authenticate.handler';
 export * from './forgot-password.handler';
 export * from './reset-password.handler';
 export * from './change-password.handler';

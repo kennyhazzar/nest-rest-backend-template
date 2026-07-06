@@ -31,6 +31,10 @@ database:
   port: 5432
   db: ${POSTGRES_DB:-app}
   ssl: false
+  # Max concurrent connections in the pg Pool. node-postgres defaults to 10 when unset;
+  # a low pool size is a real throughput ceiling under concurrent load, independent of
+  # how many queries a single request issues.
+  poolMax: 10
   # If you want to use a URI instead of individual fields, uncomment the following line:
   # uri: ${DATABASE_URL}
 
@@ -52,6 +56,12 @@ jwt:
 
 security:
   encryptionKey: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is required}
+
+# apps/auth-service: gRPC port it binds to, and the address apps/backend dials to reach it
+grpc:
+  authService:
+    port: 50051
+    url: localhost:50051
 
 # Authentication configuration
 auth:

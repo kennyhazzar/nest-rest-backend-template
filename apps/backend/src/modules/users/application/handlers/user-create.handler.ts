@@ -2,7 +2,7 @@ import { BadRequestException, Logger } from '@nestjs/common';
 import { CommandHandler, EventBus, ICommandHandler, QueryBus } from '@nestjs/cqrs';
 
 import { UserRepository } from '../../domain/repositories';
-import { PasswordService } from '../../domain/services/password.service';
+import { PasswordService } from '@libs/auth/password.service';
 import { User } from '../../domain/entities';
 import { UserCreateCommand } from '../commands';
 import { UserRoleGetByIdQuery } from '../queries';

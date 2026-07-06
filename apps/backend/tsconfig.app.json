@@ -2,9 +2,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "declaration": false,
-    "rootDir": "./src",
+    "rootDir": "../..",
     "outDir": "../../dist/apps/backend"
   },
-  "include": ["src/**/*", "src/utils/pino-pretty.js"],
+  "include": ["src/**/*", "src/utils/pino-pretty.js", "../../libs/**/*"],
   "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
 }

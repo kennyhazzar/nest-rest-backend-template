@@ -106,6 +106,54 @@ services:
       retries: 20
     networks: [backend]
 
+  auth-service:
+    build:
+      context: ..
+      dockerfile: docker/auth-service.Dockerfile
+    restart: unless-stopped
+    # Caps this service's own CPU quota so an Argon2 surge here can't starve sibling
+    # containers for host CPU time (relevant on a single shared Docker host/VM; in a real
+    # multi-node cluster this is naturally enforced by scheduling auth-service on its own
+    # nodes). Tune to the host's actual core count.
+    cpus: 4.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      CONFIG_FILE: /app/config.yaml
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL is required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+      JWT_ACCESS_TOKEN: ${JWT_ACCESS_TOKEN:?JWT_ACCESS_TOKEN is required}
+      JWT_REFRESH_TOKEN: ${JWT_REFRESH_TOKEN:?JWT_REFRESH_TOKEN is required}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?APP_ENCRYPTION_KEY is required}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      S3_BUCKET: ${S3_BUCKET:-app-files}
+      ZABBIX_ENABLED: ${ZABBIX_ENABLED:-false}
+    volumes:
+      - ./config.docker.yaml:/app/config.yaml:ro
+    expose:
+      - '50051'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('net').connect(50051,'localhost').on('connect',function(){process.exit(0)}).on('error',function(){process.exit(1)})",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    networks: [backend]
+
   backend:
     build:
       context: ..
@@ -119,6 +167,8 @@ services:
       minio-init:
         condition: service_completed_successfully
       mailpit:
+        condition: service_healthy
+      auth-service:
         condition: service_healthy
     environment:
       CONFIG_FILE: /app/config.yaml
@@ -137,6 +187,7 @@ services:
       LOG_FILE_ENABLED: ${LOG_FILE_ENABLED:-true}
       BACKEND_LOG_FILE_PATH: ${BACKEND_LOG_FILE_PATH:-/app/logs/backend.log}
       ZABBIX_ENABLED: ${ZABBIX_ENABLED:-false}
+      AUTH_SERVICE_GRPC_URL: auth-service:50051
     volumes:
       - ./config.docker.yaml:/app/config.yaml:ro
       - ./logs:/app/logs

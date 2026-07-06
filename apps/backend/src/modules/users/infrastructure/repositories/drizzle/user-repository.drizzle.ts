@@ -63,6 +63,7 @@ export class UserRepositoryDrizzle extends UserRepository {
     u.failedLoginAttempts = row.failedLoginAttempts ?? 0;
     u.failedLoginWindowStartedAt = row.failedLoginWindowStartedAt ?? null;
     u.lockedUntil = row.lockedUntil ?? null;
+    u.tokenVersion = row.tokenVersion ?? 1;
     u.country = row.country ?? 'RU';
     u.language = row.language ?? 'ru';
     u.locale = row.locale ?? 'ru_RU';
@@ -201,6 +202,7 @@ export class UserRepositoryDrizzle extends UserRepository {
         failedLoginAttempts: domainUser.failedLoginAttempts,
         failedLoginWindowStartedAt: domainUser.failedLoginWindowStartedAt,
         lockedUntil: domainUser.lockedUntil,
+        tokenVersion: domainUser.tokenVersion,
         country: domainUser.country,
         language: domainUser.language,
         locale: domainUser.locale,
@@ -227,6 +229,17 @@ export class UserRepositoryDrizzle extends UserRepository {
 
     if (!rows.length) throw new NotFoundException('user.notFound');
     return { affected: rows.length };
+  }
+
+  async incrementTokenVersion(userId: IdType): Promise<number> {
+    const [row] = await this.db
+      .update(userTable)
+      .set({ tokenVersion: sql`${userTable.tokenVersion} + 1` })
+      .where(eq(userTable.id, userId))
+      .returning({ tokenVersion: userTable.tokenVersion });
+
+    if (!row) throw new NotFoundException('user.notFound');
+    return row.tokenVersion;
   }
 
   async delete(id: IdType): Promise<UpdateAffected> {

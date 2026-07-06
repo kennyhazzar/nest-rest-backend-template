@@ -1,5 +1,5 @@
 import { pgTable, uuid, varchar, integer, text, timestamp, index, uniqueIndex, pgEnum } from 'drizzle-orm/pg-core';
-import { user } from './users.schema';
+import { user } from '@libs/database/users.schema';
 
 // Enums
 export const fileFromEnum = pgEnum('FileFrom', ['USER', 'PUBLIC']);
