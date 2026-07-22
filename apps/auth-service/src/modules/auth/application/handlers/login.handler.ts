@@ -94,20 +94,22 @@ export class LoginHandler implements ICommandHandler<LoginCommand> {
       });
     }
 
-    const accessToken = await this.tokenIssuer.generateAccessToken({
-      userId: user.id,
-      roleId: user.roleId,
-      roleType: user.roleType,
-      language: user.language,
-      tokenVersion: user.tokenVersion,
-    });
-    const { token: refreshToken, expiresAt } = await this.tokenIssuer.generateRefreshToken({
-      userId: user.id,
-      roleId: user.roleId,
-      roleType: user.roleType,
-      language: user.language,
-      tokenVersion: user.tokenVersion,
-    });
+    const [accessToken, { token: refreshToken, expiresAt }] = await Promise.all([
+      this.tokenIssuer.generateAccessToken({
+        userId: user.id,
+        roleId: user.roleId,
+        roleType: user.roleType,
+        language: user.language,
+        tokenVersion: user.tokenVersion,
+      }),
+      this.tokenIssuer.generateRefreshToken({
+        userId: user.id,
+        roleId: user.roleId,
+        roleType: user.roleType,
+        language: user.language,
+        tokenVersion: user.tokenVersion,
+      }),
+    ]);
     await this.refreshTokenRepository.create({
       userId: user.id,
       refreshToken,

@@ -49,6 +49,10 @@ export class TokenIssuerService {
     token: string;
     expiresAt: Date;
   }> {
+    if (!Number.isInteger(tokenVersion)) {
+      throw new UnauthorizedException('user.auth.invalidJwtPayload');
+    }
+
     const opts: JwtSignOptions = {
       ...JWT_BASE_OPTIONS(userId),
       secret: this.refreshSecret,
@@ -77,6 +81,7 @@ export class TokenIssuerService {
         tv: tokenVersion,
       } = await this.jwtService.verifyAsync<JwtPayloadApp>(token, {
         secret: this.refreshSecret,
+        algorithms: [this.refreshJwtAlgorithm],
       });
 
       if (!userId || !roleId || !roleType || !language) {
